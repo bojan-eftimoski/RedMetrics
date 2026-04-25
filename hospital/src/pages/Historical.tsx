@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts'
 import { Card } from '../components/ui/Card'
+import { ReplayOverlay } from '../components/ReplayOverlay'
 
 interface MonthRow { ym: string; actual: number; predicted: number }
 
 export function Historical() {
   const [data, setData] = useState<MonthRow[]>([])
+  const [replayOpen, setReplayOpen] = useState(false)
 
   useEffect(() => {
     const months = 60
@@ -28,10 +30,12 @@ export function Historical() {
     <div style={{ display: 'grid', gap: 16 }}>
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700 }}>Historical</h1>
-        <button style={replayButton} aria-label="Replay 2005 Genoa outbreak">
+        <button style={replayButton} aria-label="Replay 2005 Genoa outbreak" onClick={() => setReplayOpen(true)}>
           ▶ Replay 2005 Genoa Outbreak
         </button>
       </header>
+
+      {replayOpen && <ReplayOverlay onClose={() => setReplayOpen(false)} />}
 
       <Card title="Monthly admissions: actual vs predicted" subtitle="Synthetic preview — wire to real Stage-3 outputs after model is trained on real data">
         <div style={{ width: '100%', height: 380 }}>

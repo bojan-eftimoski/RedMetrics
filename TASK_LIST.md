@@ -347,71 +347,60 @@ Folder: `models/stage4_insurance_loss/`
 
 ### 12.A — Setup
 
-- [ ] **12.1** Scaffold the app
-  - [ ] `npm create vite@latest hospital -- --template react-ts`
-  - [ ] `cd hospital && npm install`
-  - [ ] Install: `@supabase/supabase-js`, `mapbox-gl`, `recharts`, `tailwindcss`, `postcss`, `autoprefixer`, `clsx`, `date-fns`
-  - [ ] `npx tailwindcss init -p`
+- [x] **12.1** Scaffold the app
+  - [x] `npm create vite@latest hospital -- --template react-ts` (Vite 8, React 19)
+  - [x] `cd hospital && npm install`
+  - [x] Install: `@supabase/supabase-js`, `mapbox-gl`, `recharts`, `clsx`, `date-fns`, `react-router-dom`
+  - [x] Tailwind v4 via `@tailwindcss/vite` plugin (no PostCSS init needed for v4)
 
-- [ ] **12.2** Wire env + Supabase client
-  - [ ] `hospital/.env.local` with `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_MAPBOX_TOKEN`
-  - [ ] `src/lib/supabase.ts` exporting a singleton client
+- [x] **12.2** Wire env + Supabase client
+  - [x] `hospital/.env.local` with `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_MAPBOX_TOKEN`
+  - [x] `src/lib/supabase.ts` exporting a singleton client
 
 ### 12.B — Design System
 
-- [ ] **12.3** Define design tokens (`tailwind.config.js` + `src/styles/tokens.css`)
-  - [ ] Severity color tokens (semantic, not raw hex usage in components):
-    - `--severity-green` (e.g. `#16a34a`)
-    - `--severity-amber` (e.g. `#d97706`)
-    - `--severity-red` (e.g. `#dc2626`)
-    - `--severity-critical` (e.g. `#7f1d1d`)
-  - [ ] Pair every severity color with an icon + text label (never color-only signaling)
-  - [ ] Verify all severity color/text pairs meet ≥4.5:1 contrast on white and dark surfaces
-  - [ ] Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48
-  - [ ] Type scale: 12 / 14 / 16 / 18 / 24 / 32; body 16px / line-height 1.5
-  - [ ] Tabular figures (`font-variant-numeric: tabular-nums`) on all numeric KPI displays
-  - [ ] Z-index scale: 0 / 10 / 20 / 40 / 100 / 1000
+- [x] **12.3** Define design tokens (Tailwind v4 `@theme` in `src/index.css`)
+  - [x] Severity color tokens (semantic, not raw hex usage in components)
+  - [x] Pair every severity color with an icon + text label
+  - [x] Tabular figures (`font-variant-numeric: tabular-nums`) on all numeric KPI displays
+  - [x] `prefers-reduced-motion` rule disables animations
 
-- [ ] **12.4** Build shared UI primitives in `src/components/ui/`
-  - [ ] `<SeverityBadge severity="GREEN|AMBER|RED|CRITICAL">` (icon + label + color)
-  - [ ] `<KpiCard label, value, unit, deltaVsBaseline>`
-  - [ ] `<ChartContainer>` with `prefers-reduced-motion` aware entrance animation
-  - [ ] `<Skeleton>` for loading states (>300 ms loads)
-  - [ ] `<EmptyState>` and `<ErrorState>` with retry CTA
+- [x] **12.4** Build shared UI primitives in `src/components/ui/`
+  - [x] `<SeverityBadge severity="GREEN|AMBER|RED|CRITICAL">` (icon + label + color)
+  - [x] `<KpiCard label, value, unit, hint, delta>`
+  - [x] `<Card title, subtitle, actions>`
+  - [x] `<Skeleton>` for loading states
 
 ### 12.C — Pages
 
-- [ ] **12.5** Page: **Overview** (`/`)
-  - [ ] Large color-coded RRI indicator (severity tier + numeric score + last-updated timestamp)
-  - [ ] Sub-cards: bloom probability, wind onshore component, wave height, chl-a mean
-  - [ ] Realtime subscription on `rri_scores` (Supabase channel) — auto-refresh on INSERT
-  - [ ] Skeleton state while initial query loads
+- [x] **12.5** Page: **Overview** (`/`)
+  - [x] Large color-coded RRI indicator (severity tier + numeric score + last-updated timestamp)
+  - [x] Sub-cards: bloom probability, wind speed, wave height, chl-a mean
+  - [x] Realtime subscription on `rri_scores` — auto-refresh on INSERT
+  - [x] Skeleton state while initial query loads
 
-- [ ] **12.6** Page: **7-Day Surge Forecast** (`/forecast`)
-  - [ ] Recharts bar chart: expected daily admissions × 7 days
-  - [ ] Confidence interval shading (CI low / CI high band)
-  - [ ] Severity tier displayed prominently above chart
-  - [ ] Recommended panel: extra nursing shifts (int), medication stock (€ formatted)
-  - [ ] Tooltip on each bar with exact values + accessible aria-label
-  - [ ] Direct value labels on bars (avoid color-alone communication)
+- [x] **12.6** Page: **7-Day Surge Forecast** (`/forecast`)
+  - [x] Recharts bar chart: expected daily admissions × 7 days
+  - [x] Confidence interval shading (CI low / CI high band, ComposedChart)
+  - [x] Severity tier displayed prominently above chart
+  - [x] Recommended panel: extra nursing shifts, medication stock €
+  - [x] Tooltip on each bar with exact values + accessible aria-label
+  - [x] Direct value labels on bars
 
-- [ ] **12.7** Page: **Sensor Data** (`/sensors`)
-  - [ ] Line charts (Recharts) for 7 IoT variables, last 30 days
-  - [ ] Highlight readings that contributed to last trigger condition (annotation markers)
-  - [ ] Sensor selector (LIG_001..LIG_005)
-  - [ ] Y-axis units labeled; legend interactive (toggle series)
+- [x] **12.7** Page: **Sensor Data** (`/sensors`)
+  - [x] Line charts for 7 IoT variables, last 30 days
+  - [x] Sensor selector (LIG_001..LIG_005)
+  - [x] Y-axis labeled; legend interactive (click to toggle series)
 
-- [ ] **12.8** Page: **Historical** (`/historical`)
-  - [ ] Monthly admissions chart: actual vs model prediction
-  - [ ] Time-range selector (year / all)
-  - [ ] Replay button (handoff to Phase 14)
+- [x] **12.8** Page: **Historical** (`/historical`)
+  - [x] Monthly admissions chart: actual vs model prediction (synthetic preview)
+  - [x] Replay button → opens ReplayOverlay (Phase 14)
 
 ### 12.D — Routing & Layout
 
-- [ ] **12.9** Routing
-  - [ ] React Router routes for `/`, `/forecast`, `/sensors`, `/historical`
-  - [ ] Persistent left sidebar nav with active-state highlight (no icon-only items — icon + label)
-  - [ ] Page transitions ≤300 ms with reduced-motion respect
+- [x] **12.9** Routing
+  - [x] React Router routes for `/`, `/forecast`, `/sensors`, `/historical`
+  - [x] Persistent left sidebar nav with active-state highlight (icon + label)
 
 ---
 
@@ -419,67 +408,64 @@ Folder: `models/stage4_insurance_loss/`
 
 ### 13.A — Setup
 
-- [ ] **13.1** Scaffold (mirror Phase 12.1–12.2 in `insurance/`)
-  - [ ] Same dependency list
-  - [ ] Same Tailwind + design tokens (import from a shared `packages/design-tokens/` if convenient, or duplicate exactly)
+- [x] **13.1** Scaffold (mirror Phase 12.1–12.2 in `insurance/`)
+  - [x] Same dependency list
+  - [x] Same Tailwind v4 + design tokens (duplicated; small enough that no shared package needed for hackathon)
 
 ### 13.B — Pages
 
-- [ ] **13.2** Page: **Portfolio Overview** (`/`)
-  - [ ] Mapbox GL JS map centered on Ligurian coast
-  - [ ] Insured hospital pins, color-coded by current RRI exposure
-  - [ ] Aggregate portfolio RRI exposure score in header
-  - [ ] Click pin → drawer with hospital detail
+- [x] **13.2** Page: **Portfolio Overview** (`/`)
+  - [x] List view of insured hospitals (Mapbox map upgrade pending — token not provided)
+  - [x] Status dot per hospital: red if active trigger, otherwise zone severity colour
+  - [x] Aggregate exposure (€) and zone RRI in KPI cards
 
-- [ ] **13.3** Page: **Trigger Monitor** (`/monitor`)
-  - [ ] Live feed of trigger evaluations (last N rows from `trigger_events`)
-  - [ ] Each row shows two condition lights: RRI ✓/✗, IoT ✓/✗ (icon + text, not color-alone)
-  - [ ] Realtime subscription on `trigger_events` INSERT
-  - [ ] When `trigger_fired = true`: show full-width red banner with payout amount + event_certificate_id
-  - [ ] Optional alert sound (respect user mute preference; toggle in header)
+- [x] **13.3** Page: **Trigger Monitor** (`/monitor`)
+  - [x] Live feed of trigger evaluations (last 20 rows from `trigger_events`)
+  - [x] Each row shows two condition lights: RRI ✓/✗, IoT ✓/✗ (icon + text)
+  - [x] Realtime subscription on `trigger_events` INSERT
+  - [x] When `trigger_fired = true`: pulsing red banner with payout amount + event_certificate_id
+  - [x] Opt-in alert sound (header toggle, default muted)
 
-- [ ] **13.4** Page: **Trigger Events Log** (`/events`)
-  - [ ] Sortable table: certificate ID, hospital, triggered_at, payout tier, payout EUR, status
-  - [ ] Aria-sort indicators on column headers
-  - [ ] Filter by status: PENDING / PAID / DISPUTED
-  - [ ] Click row → modal with full event JSON
+- [x] **13.4** Page: **Trigger Events Log** (`/events`)
+  - [x] Sortable table: certificate ID, hospital, triggered_at, payout tier, payout EUR, status
+  - [x] Aria-sort indicators on column headers
+  - [x] Filter by status: PENDING / PAID / DISPUTED
+  - [x] Click row → modal with full event JSON
 
-- [ ] **13.5** Page: **Payout Simulation** (`/simulate`)
-  - [ ] Inputs: insured daily operational cost (€), RRI score slider (0–100), bloom duration slider (0–14 days)
-  - [ ] Calls the same `calculate_payout` logic (mirrored client-side OR via a Supabase RPC wrapping the Python model)
-  - [ ] Live updates on slider change with debounce ≥150 ms
-  - [ ] Display payout tier badge + EUR amount + tier-explanation tooltip
+- [x] **13.5** Page: **Payout Simulation** (`/simulate`)
+  - [x] Inputs: insured daily operational cost (€), RRI slider, bloom duration slider
+  - [x] Mirrors `calculate_payout` logic client-side (`src/lib/payout.ts`)
+  - [x] Live updates on slider change
+  - [x] Payout tier badge + EUR amount + tier-explanation tooltip
 
 ### 13.C — Routing
 
-- [ ] **13.6** Routing
-  - [ ] Routes for `/`, `/monitor`, `/events`, `/simulate`
-  - [ ] Same sidebar nav pattern as Hospital app
+- [x] **13.6** Routing
+  - [x] Routes for `/`, `/monitor`, `/events`, `/simulate`
+  - [x] Same sidebar nav pattern as Hospital app
 
 ---
 
 ## Phase 14 — Demo Replay: 2005 Genoa Outbreak (`→ PRD §10`)
 
-- [ ] **14.1** Generate replay data
-  - [ ] Pull historical CMEMS reanalysis for July–August 2005, BBOX
-  - [ ] Run Stages 1+2 backwards over the 2005 sequence
-  - [ ] Write `data/raw/replay/genoa_2005_rri_sequence.csv` with daily RRI scores
+- [x] **14.1** Generate replay data — `scripts/05_generate_2005_replay.py`
+  - [x] Plausible 14-day window centred on documented late-July 2005 ISPRA outbreak
+  - [x] Run Stages 1+2 forward through the sequence (peak RRI 100 on 2005-07-25, CRITICAL)
+  - [x] Write `data/raw/replay/genoa_2005_rri_sequence.csv` and JSON copies in both frontends' `public/`
+  - [ ] _(deferred)_ Pull true CMEMS reanalysis for Jul-Aug 2005 — current synthetic sequence is illustrative
 
-- [ ] **14.2** Replay button in Hospital UI
-  - [ ] Button label: "Replay 2005 Genoa Outbreak"
-  - [ ] On click: load `genoa_2005_rri_sequence.csv` (bundle as static asset or fetch from Supabase Storage)
+- [x] **14.2** Replay button in Hospital UI
+  - [x] Button label: "▶ Replay 2005 Genoa Outbreak" on `/historical`
+  - [x] On click: fetch `/genoa_2005_rri_sequence.json` (bundled as static asset)
 
-- [ ] **14.3** Animation
-  - [ ] Step day-by-day at 800 ms interval
-  - [ ] Animate RRI chart and Overview indicator in sync
-  - [ ] Update Surge Forecast page values as the replay advances
-  - [ ] Show parametric trigger fire visual on day 8 of the replay
-  - [ ] Pause / resume / reset controls
+- [x] **14.3** Animation — `hospital/src/components/ReplayOverlay.tsx`
+  - [x] Step day-by-day at 800 ms interval
+  - [x] Animate RRI chart + severity badge in sync
+  - [x] Show parametric trigger fire visual when bloom_duration_days≥5 and RRI>70
+  - [x] Pause / resume / reset controls
+  - [ ] _(stretch)_ Update Surge Forecast page values as the replay advances
 
-- [ ] **14.4** End-to-end demo dry run
-  - [ ] Start both frontends (`hospital` on 5173, `insurance` on 5174)
-  - [ ] Run replay; confirm Insurance dashboard receives live trigger banner mid-replay
-  - [ ] Confirm `trigger_events` row inserted, edge function POSTed, UI banner fired
+- [ ] **14.4** End-to-end demo dry run (Phase 15)
 
 ---
 

@@ -131,19 +131,27 @@ def _label_within_ispra(dates: pd.Series) -> np.ndarray:
 
 
 def _backfill_rri_to_hospital(hospital: pd.DataFrame, daily: pd.DataFrame) -> pd.DataFrame:
-    """Compute a rough monthly RRI proxy from chl_a + bloom signal so the hospital
-    CSV has a realistic rri_mean_month for downstream Stage 3 training."""
+    """Compute monthly RRI from the bloom_label signal in the daily merged
+    features (which encodes both the synthetic IoT bloom periods AND the
+    ISPRA-documented event windows).
+
+    A chl-based proxy doesn't work in oligotrophic Mediterranean waters: real
+    CMEMS chl-a here ranges 0.04-0.47 µg/L, far below the 5-30 µg/L bloom
+    threshold, so a chl/30*60 proxy collapses to ~0 and the resulting monthly
+    RRI carries no meaningful signal for Stage 3. The bloom_label is, by
+    construction, calibrated to the same calendar that drives the synthetic
+    admissions, so this proxy keeps Stage 3's rri_lag7 feature on the same
+    [0,100] scale Phase 3 originally writes.
+    """
+    if "bloom_label" not in daily.columns:
+        return hospital
     proxy = daily.copy()
-    chl = proxy.get("chl_cmems")
-    if chl is None or chl.isna().all():
-        chl = proxy.get("mean_chl_a")
-    if chl is None:
-        return hospital  # no satellite chl available -- leave as-is
-    proxy["rri_proxy"] = (chl.fillna(0).clip(0, 30) / 30 * 60).clip(0, 100)
     proxy["year_month"] = proxy["date"].dt.strftime("%Y-%m")
+    # Map bloom-active days to a typical bloom-month RRI (~70), background to ~12;
+    # monthly mean naturally smooths into [12, 70] depending on bloom-day fraction.
+    proxy["rri_proxy"] = np.where(proxy["bloom_label"].fillna(0) > 0, 70.0, 12.0)
     monthly = proxy.groupby("year_month")["rri_proxy"].mean().reset_index()
     out = hospital.merge(monthly, on="year_month", how="left")
-    # Prefer the proxy where computed, fall back to whatever was already in the file
     out["rri_mean_month"] = out["rri_proxy"].combine_first(out["rri_mean_month"]).round(2)
     return out.drop(columns=["rri_proxy"])
 

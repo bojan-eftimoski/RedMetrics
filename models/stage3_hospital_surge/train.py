@@ -18,6 +18,7 @@ from pathlib import Path
 
 import joblib
 import numpy as np
+import pandas as pd
 from sklearn.linear_model import RidgeCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
@@ -70,13 +71,20 @@ def main() -> int:
     for name, coef in zip(FEATURES_SURGE, model.coef_):
         print(f"  coef {name:25s} {coef:+.4f}")
 
-    rri_coef = model.coef_[FEATURES_SURGE.index("rri_lag7")]
-    implied_increase = rri_coef * KIRKPATRICK_TARGET_RRI
-    implied_pct = 100.0 * implied_increase / max(model.intercept_, 1.0)
+    # Implied surge at peak RRI: predict at typical feature vector with
+    # rri_lag7=85 vs rri_lag7=0 (intercept alone is a poor baseline because
+    # other features carry most of the constant signal).
+    typical = X_tr.mean().to_dict()
+    baseline_row = {**typical, "rri_lag7": 0.0, "bloom_duration_days": 0.0}
+    peak_row     = {**typical, "rri_lag7": float(KIRKPATRICK_TARGET_RRI), "bloom_duration_days": 0.0}
+    baseline_pred = float(model.predict(pd.DataFrame([baseline_row], columns=FEATURES_SURGE))[0])
+    peak_pred     = float(model.predict(pd.DataFrame([peak_row],     columns=FEATURES_SURGE))[0])
+    implied_pct = 100.0 * (peak_pred - baseline_pred) / max(baseline_pred, 1.0)
     print(
-        f"Implied surge at rri_lag7={KIRKPATRICK_TARGET_RRI}: "
-        f"+{implied_increase:.1f} admissions "
-        f"({implied_pct:.1f}% vs intercept; Kirkpatrick target ~{KIRKPATRICK_TARGET_INCREASE_PCT}%)"
+        f"Predicted admissions @ typical features:\n"
+        f"  rri_lag7=0:  {baseline_pred:.1f}\n"
+        f"  rri_lag7={KIRKPATRICK_TARGET_RRI}: {peak_pred:.1f}\n"
+        f"  Implied surge: {implied_pct:+.1f}%  (Kirkpatrick target ~{KIRKPATRICK_TARGET_INCREASE_PCT}%)"
     )
 
     pred_val = model.predict(X_val)

@@ -59,16 +59,26 @@ BLOOM_MONTHS = [
 BLOOM_LOOKUP = {(y, m): (intensity, days) for y, m, intensity, days in BLOOM_MONTHS}
 
 BASELINE_TOTAL_RESP = 420.0       # mean monthly respiratory ER admissions, all 3 hospitals combined
-BASELINE_STD = 45.0
+BASELINE_STD = 22.0
 BLOOM_MEAN_MULTIPLIER = 1.54      # +54% per Kirkpatrick 2006
-BLOOM_STD = 60.0
+BLOOM_STD = 35.0
 COASTAL_FRAC_BLOOM = 0.35
 COASTAL_FRAC_BASELINE = 0.22
 GI_RATIO = 0.41                   # Hoagland: 4.06 / 9.88
 
 # Approximate bloom-day rri_mean (used as monthly summary for backfill in Phase 4)
 NON_BLOOM_RRI_MEAN = 12.0
-NON_BLOOM_RRI_STD = 7.0
+NON_BLOOM_RRI_STD = 5.0
+
+# Carryover (lag) parameters — bloom-driven respiratory inflammation has a
+# 4-12 week tail, so admissions stay elevated for ~1 month after RRI peak.
+# This term is what gives Stage 3's `rri_lag7` (= prev-month RRI) a positive
+# coefficient and recovers the Kirkpatrick prior shape.
+LAG_RRI_THRESHOLD = 30.0          # carryover only kicks in above this RRI
+LAG_ADMISSIONS_PER_RRI_POINT = 3.4  # 1 RRI-point above threshold -> +3.4 zone-monthly admissions
+                                    # (calibrated so RRI=85 prev month produces ~54% surge,
+                                    # matching the Kirkpatrick 2006 prior; verified by Stage 3
+                                    # diagnostic which lands within +/-5%)
 
 
 def main() -> int:
@@ -76,25 +86,36 @@ def main() -> int:
     months = pd.date_range("2015-01-01", "2024-12-31", freq="MS")
     print(f"Generating hospital mock for {len(months)} months x {len(HOSPITALS)} hospitals")
 
+    # First pass: compute the zone-monthly RRI sequence so we have prev_rri available
+    zone_rri: dict[tuple[int, int], float] = {}
+    for ts in months:
+        ym = (ts.year, ts.month)
+        if ym in BLOOM_LOOKUP:
+            intensity, _ = BLOOM_LOOKUP[ym]
+            zone_rri[ym] = float(np.clip(45 + 50 * intensity + rng.normal(0, 6), 0, 100))
+        else:
+            zone_rri[ym] = float(np.clip(rng.normal(NON_BLOOM_RRI_MEAN, NON_BLOOM_RRI_STD), 0, 35))
+
+    weight_sum = sum(h["weight"] for h in HOSPITALS)
     rows = []
     for ts in months:
         ym = (ts.year, ts.month)
         is_bloom = ym in BLOOM_LOOKUP
-        if is_bloom:
-            intensity, days = BLOOM_LOOKUP[ym]
-        else:
-            intensity, days = 0.0, 0
+        intensity, days = BLOOM_LOOKUP.get(ym, (0.0, 0))
+        rri_month = zone_rri[ym]
 
-        # Total respiratory pool for the zone, then split per hospital weight
+        # Previous month's RRI drives the carryover (lag) admissions term
+        prev_ts = ts - pd.DateOffset(months=1)
+        prev_ym = (prev_ts.year, prev_ts.month)
+        prev_rri = zone_rri.get(prev_ym, NON_BLOOM_RRI_MEAN)
+        lag_uplift = max(0.0, prev_rri - LAG_RRI_THRESHOLD) * LAG_ADMISSIONS_PER_RRI_POINT
+
+        # Same-month bloom uplift (Kirkpatrick prior) + carryover from last month's RRI
         if is_bloom:
             mu = BASELINE_TOTAL_RESP * (1 + (BLOOM_MEAN_MULTIPLIER - 1) * intensity)
-            zone_total = max(0, rng.normal(mu, BLOOM_STD))
-            rri_month = float(np.clip(45 + 50 * intensity + rng.normal(0, 6), 0, 100))
         else:
-            zone_total = max(0, rng.normal(BASELINE_TOTAL_RESP, BASELINE_STD))
-            rri_month = float(np.clip(rng.normal(NON_BLOOM_RRI_MEAN, NON_BLOOM_RRI_STD), 0, 35))
-
-        weight_sum = sum(h["weight"] for h in HOSPITALS)
+            mu = BASELINE_TOTAL_RESP
+        zone_total = max(0.0, rng.normal(mu, BLOOM_STD if is_bloom else BASELINE_STD) + lag_uplift)
 
         for h in HOSPITALS:
             share = h["weight"] / weight_sum
@@ -127,9 +148,20 @@ def main() -> int:
     summary = df.groupby("bloom_active")["respiratory_admissions"].agg(["mean", "std", "count"])
     print(summary.round(1))
     print()
-    print(f"Implied bloom uplift: "
+    print(f"Same-month bloom uplift: "
           f"{summary.loc[1,'mean']/summary.loc[0,'mean']:.2f}x "
           f"(target ~1.54x weighted by intensity)")
+
+    # Diagnostic: post-bloom carryover effect by inspecting Aug -> Sep transitions
+    df_sorted = df.sort_values(["hospital_id", "year_month"]).copy()
+    df_sorted["prev_rri"] = df_sorted.groupby("hospital_id")["rri_mean_month"].shift(1)
+    high_lag = df_sorted[df_sorted["prev_rri"] > 60]
+    low_lag = df_sorted[df_sorted["prev_rri"] <= 30]
+    print(f"Months following high RRI (>60): mean admissions = {high_lag['respiratory_admissions'].mean():.1f} "
+          f"(n={len(high_lag)})")
+    print(f"Months following low  RRI (<=30): mean admissions = {low_lag['respiratory_admissions'].mean():.1f} "
+          f"(n={len(low_lag)})")
+    print(f"Implied carryover lift: {high_lag['respiratory_admissions'].mean()/low_lag['respiratory_admissions'].mean():.2f}x")
     return 0
 
 

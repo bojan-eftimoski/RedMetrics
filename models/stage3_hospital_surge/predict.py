@@ -24,9 +24,11 @@ from models.stage3_hospital_surge.features import FEATURES_SURGE  # noqa: E402
 
 MODEL_PATH = REPO_ROOT / "data" / "models" / "stage3_linear.pkl"
 
-BASELINE = 420
-LOW_THRESHOLD = 50
-MODERATE_THRESHOLD = 120
+# Per-hospital monthly baseline (matches Stage 3 training target scale).
+# Stage 3 trains on per-hospital admissions; mean of non-bloom months is ~130.
+BASELINE = 130
+LOW_THRESHOLD = 25      # per-hospital "additional vs baseline" (zone total ~75 across 3 hospitals)
+MODERATE_THRESHOLD = 60 # per-hospital threshold (zone total ~180 across 3 hospitals)
 NURSING_PER_EXTRA_25 = 25
 EUR_PER_ADDITIONAL_PATIENT = 95
 CI_LOW_PCT = 0.85

@@ -268,34 +268,42 @@ def download_sentinel2_ndci() -> Path:
 
 
 # ─── CMEMS Mediterranean fields ───────────────────────────────────────────
+# Med Sea reanalysis (`my` = multi-year) datasets cover 1987-present with daily
+# resolution and no cloud gaps. NRT analysis-and-forecast (`anfc`) siblings only
+# start in late 2023, which is why we use reanalysis for the 2015-2024 window.
+#
+# Note: temperature is `phy-temp` (extra 'p'), not `phy-tem` -- the latter only
+# exists as the yearly P1Y-m roll-up. Confirmed via copernicusmarine.describe.
 CMEMS_DATASETS = {
     "sst": {
-        "id": "cmems_mod_med_phy-tem_anfc_4.2km_P1D-m",
+        "id": "cmems_mod_med_phy-temp_my_4.2km_P1D-m",
         "vars": ["thetao"],
         "depth_max": 1.5,
     },
     "currents": {
-        "id": "cmems_mod_med_phy-cur_anfc_4.2km_P1D-m",
+        "id": "cmems_mod_med_phy-cur_my_4.2km_P1D-m",
         "vars": ["uo", "vo"],
         "depth_max": 1.5,
     },
     "salinity": {
-        "id": "cmems_mod_med_phy-sal_anfc_4.2km_P1D-m",
+        "id": "cmems_mod_med_phy-sal_my_4.2km_P1D-m",
         "vars": ["so"],
         "depth_max": 1.5,
     },
-    # Chlorophyll-a in the Med Sea NRT lives in the PFT (phytoplankton
-    # functional types) sub-product, not -bio (which exposes O2/nutrients).
+    # Chlorophyll-a in the Med Sea reanalysis lives in the -plankton sub-product.
+    # The legacy -pft naming used by the NRT family is not present in the `my`
+    # catalog (confirmed via copernicusmarine.describe).
     "chlorophyll": {
-        "id": "cmems_mod_med_bgc-pft_anfc_4.2km_P1D-m",
+        "id": "cmems_mod_med_bgc-plankton_my_4.2km_P1D-m",
         "vars": ["chl"],
         "depth_max": 1.5,
     },
 }
 
-# Reanalysis chl for pre-NRT history (optional). Same product family.
+# NRT chl as gap-fill for any tail-end days the reanalysis hasn't published yet.
+# Best-effort -- the script does not stop if this fails.
 CMEMS_REANALYSIS = {
-    "id": "cmems_mod_med_bgc-pft_my_4.2km_P1D-m",
+    "id": "cmems_mod_med_bgc-pft_anfc_4.2km_P1D-m",
     "vars": ["chl"],
     "depth_max": 1.5,
 }
@@ -375,20 +383,19 @@ def download_cmems() -> Path:
         df_ = df_.rename(columns=rename_map)
         daily = df_ if daily is None else daily.merge(df_, on="date", how="outer")
 
-    # Reanalysis BGC for pre-2022 chl_cmems gap-fill if needed
+    # NRT chl gap-fills any tail-end days the reanalysis hasn't published yet.
     try:
-        df_re = _cmems_subset_to_daily_scalar(
+        df_nrt = _cmems_subset_to_daily_scalar(
             CMEMS_REANALYSIS["id"], CMEMS_REANALYSIS["vars"], CMEMS_REANALYSIS["depth_max"]
         )
-        df_re = df_re.rename(columns={"chl": "chl_cmems_reanalysis"})
-        daily = daily.merge(df_re, on="date", how="left")
-        # Use reanalysis where the analysis-and-forecast chl is missing
-        if "chl_cmems" in daily.columns and "chl_cmems_reanalysis" in daily.columns:
-            daily["chl_cmems"] = daily["chl_cmems"].fillna(daily["chl_cmems_reanalysis"])
-            daily = daily.drop(columns=["chl_cmems_reanalysis"])
+        df_nrt = df_nrt.rename(columns={"chl": "chl_cmems_nrt"})
+        daily = daily.merge(df_nrt, on="date", how="left")
+        if "chl_cmems" in daily.columns and "chl_cmems_nrt" in daily.columns:
+            daily["chl_cmems"] = daily["chl_cmems"].fillna(daily["chl_cmems_nrt"])
+            daily = daily.drop(columns=["chl_cmems_nrt"])
     except Exception as e:
-        # Non-fatal — analysis-and-forecast chl already provides coverage from 2022+.
-        print(f"[CMEMS] reanalysis BGC skipped: {e}")
+        # Non-fatal -- reanalysis already covers the 2015-2024 training window.
+        print(f"[CMEMS] NRT chl gap-fill skipped: {e}")
 
     if daily is None or daily.empty:
         raise RuntimeError("CMEMS returned no data after merge")

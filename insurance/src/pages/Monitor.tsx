@@ -71,7 +71,7 @@ export function Monitor() {
             </div>
           </div>
           <div className="tabular" style={{ fontSize: 36, fontWeight: 700 }}>
-            €{latestFired.payout_eur.toLocaleString()}
+            €{latestFired.calculated_payout_eur.toLocaleString()}
           </div>
         </div>
       )}
@@ -84,7 +84,7 @@ export function Monitor() {
             {events.map(e => (
               <div key={e.id} style={evRow}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <ConditionDot ok={e.rri_score > 70 && e.rri_consecutive_days >= 5} label="RRI" />
+                  <ConditionDot ok={e.rri_score > 70 && e.rri_days_above_threshold >= 5} label="RRI" />
                   <ConditionDot ok={e.trigger_fired} label="IoT" />
                   <div>
                     <div style={{ fontWeight: 600 }}>{e.hospital_id}</div>
@@ -94,9 +94,9 @@ export function Monitor() {
                   </div>
                 </div>
                 <div className="tabular" style={{ fontSize: 14 }}>
-                  RRI <strong>{e.rri_score.toFixed(1)}</strong> · {e.rri_consecutive_days}d
+                  RRI <strong>{e.rri_score.toFixed(1)}</strong> · {e.rri_days_above_threshold}d
                   <span style={{ marginLeft: 12, color: e.trigger_fired ? '#fca5a5' : '#94a3b8', fontWeight: 600 }}>
-                    {e.trigger_fired ? `€${e.payout_eur.toLocaleString()}` : 'no payout'}
+                    {e.trigger_fired ? `€${e.calculated_payout_eur.toLocaleString()}` : 'no payout'}
                   </span>
                 </div>
               </div>

@@ -49,7 +49,7 @@ export function Portfolio() {
 
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
         <KpiCard label="Aggregate exposure" value={`€${(totalInsured / 1000).toFixed(0)}k`} unit="/ day" hint="Sum of insured daily operational cost" />
-        <KpiCard label="Zone RRI" value={latestRri ? latestRri.rri_score.toFixed(1) : '—'} hint={latestRri ? `Severity ${latestRri.severity_tier}` : 'No data'} />
+        <KpiCard label="Zone RRI" value={latestRri ? latestRri.rri_score.toFixed(1) : '—'} hint={latestRri ? `Severity ${latestRri.severity}` : 'No data'} />
         <KpiCard label="Triggered (24h)" value={triggeredHospitals.size} unit={`/ ${HOSPITALS.length}`} hint="Hospitals with active payout trigger" />
         <KpiCard label="Recent events" value={recentTriggers.length} hint="Last 20 trigger evaluations" />
       </div>
@@ -63,7 +63,7 @@ export function Portfolio() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{
                     width: 10, height: 10, borderRadius: '50%',
-                    background: triggered ? '#dc2626' : (latestRri ? severityDot(latestRri.severity_tier) : '#16a34a'),
+                    background: triggered ? '#dc2626' : (latestRri ? severityDot(latestRri.severity) : '#16a34a'),
                   }} aria-hidden="true" />
                   <div>
                     <div style={{ fontWeight: 600 }}>{h.name}</div>
@@ -83,7 +83,7 @@ export function Portfolio() {
   )
 }
 
-function severityDot(s: RriScore['severity_tier']): string {
+function severityDot(s: RriScore['severity']): string {
   return { GREEN: '#16a34a', AMBER: '#d97706', RED: '#dc2626', CRITICAL: '#7f1d1d' }[s]
 }
 

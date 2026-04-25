@@ -1,57 +1,67 @@
 export type Severity = 'GREEN' | 'AMBER' | 'RED' | 'CRITICAL'
+export type SurgeTier = 'LOW SURGE' | 'MODERATE SURGE' | 'HIGH SURGE'
+export type TriggerStatus = 'PENDING' | 'PAID' | 'DISPUTED'
 
 export interface RriScore {
   id: string
   zone_id: string
   date: string
-  bloom_probability: number
   rri_score: number
-  severity_tier: Severity
+  severity: Severity
+  bloom_probability: number
   wind_speed: number | null
-  wind_direction: number | null
   wave_height: number | null
   chl_a_mean: number | null
   rri_consecutive_days: number | null
-  bloom_duration_days: number | null
   created_at: string
 }
 
 export interface HospitalSurgeForecast {
   id: string
   hospital_id: string
+  zone_id: string
   forecast_date: string
-  expected_total_admissions: number
-  expected_additional_vs_baseline: number
-  severity_tier: 'LOW' | 'MODERATE' | 'HIGH SURGE'
-  recommended_extra_nursing_shifts: number
-  recommended_medication_stock_eur: number
-  confidence_interval_low: number
-  confidence_interval_high: number
-  created_at: string
+  generated_at: string
+  expected_admissions: number
+  additional_vs_baseline: number
+  severity_tier: SurgeTier
+  extra_nursing_shifts: number
+  medication_stock_eur: number
+  ci_low: number
+  ci_high: number
 }
 
 export interface SensorReading {
   id: string
   sensor_id: string
+  zone_id: string | null
   timestamp: string
-  water_temperature: number | null
+  temperature_c: number | null
   ph: number | null
-  humidity: number | null
-  conductivity: number | null
-  dissolved_oxygen: number | null
-  nitrate: number | null
-  phosphate: number | null
+  humidity_pct: number | null
+  conductivity_ms_cm: number | null
+  dissolved_oxygen_mg_l: number | null
+  nitrate_umol_l: number | null
+  phosphate_umol_l: number | null
 }
 
 export interface TriggerEvent {
   id: string
   event_certificate_id: string
+  zone_id: string | null
   hospital_id: string
+  insurer_id: string
   triggered_at: string
   trigger_fired: boolean
+  rri_condition_met: boolean
+  iot_condition_met: boolean
   rri_score: number
-  rri_consecutive_days: number
+  rri_days_above_threshold: number
+  iot_dissolved_oxygen: number | null
+  iot_ph: number | null
   payout_tier: 'CRITICAL' | 'RED' | 'AMBER' | 'NONE'
-  payout_eur: number
-  status: 'PENDING' | 'PAID' | 'DISPUTED'
+  payout_pct: number
+  calculated_payout_eur: number
+  bloom_duration_days: number
+  status: TriggerStatus
 }

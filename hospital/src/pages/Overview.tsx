@@ -88,7 +88,7 @@ export function Overview() {
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <SeverityBadge severity={latest.severity_tier} size="lg" />
+            <SeverityBadge severity={latest.severity} size="lg" />
             <div style={{ fontSize: 14, color: 'var(--color-text-muted)' }}>
               For {latest.date} · zone {latest.zone_id.slice(0, 8)}
             </div>
@@ -107,7 +107,7 @@ export function Overview() {
           label="Wind speed"
           value={latest.wind_speed != null ? latest.wind_speed.toFixed(1) : '—'}
           unit="m/s"
-          hint={`From bearing ${latest.wind_direction != null ? Math.round(latest.wind_direction) : '—'}°`}
+          hint="ERA5 10m"
         />
         <KpiCard
           label="Wave height"

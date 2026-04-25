@@ -13,8 +13,8 @@ const HOSPITALS = [
 ]
 
 const tierColor: Record<string, string> = {
-  'LOW': '#16a34a',
-  'MODERATE': '#d97706',
+  'LOW SURGE': '#16a34a',
+  'MODERATE SURGE': '#d97706',
   'HIGH SURGE': '#dc2626',
 }
 
@@ -46,10 +46,9 @@ export function Forecast() {
     () =>
       rows.map(r => ({
         date: r.forecast_date.slice(5),
-        admissions: Math.round(r.expected_total_admissions),
-        ciLow: Math.round(r.confidence_interval_low),
-        ciHigh: Math.round(r.confidence_interval_high),
-        ciBand: Math.round(r.confidence_interval_high - r.confidence_interval_low),
+        admissions: r.expected_admissions,
+        ciLow: r.ci_low,
+        ciHigh: r.ci_high,
       })),
     [rows],
   )
@@ -79,9 +78,9 @@ export function Forecast() {
           <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
             <KpiCard
               label="Tomorrow expected"
-              value={Math.round(latest.expected_total_admissions)}
+              value={latest.expected_admissions}
               unit="admissions"
-              delta={{ value: latest.expected_additional_vs_baseline, label: 'vs baseline' }}
+              delta={{ value: latest.additional_vs_baseline, label: 'vs baseline' }}
             />
             <KpiCard
               label="Severity tier"
@@ -94,13 +93,13 @@ export function Forecast() {
             />
             <KpiCard
               label="Extra nursing shifts"
-              value={latest.recommended_extra_nursing_shifts}
+              value={latest.extra_nursing_shifts}
               unit="shifts"
               hint="Recommended over next 7 days"
             />
             <KpiCard
               label="Medication stock"
-              value={`€${(latest.recommended_medication_stock_eur / 1000).toFixed(0)}k`}
+              value={`€${(latest.medication_stock_eur / 1000).toFixed(0)}k`}
               hint="Suggested top-up budget"
             />
           </div>

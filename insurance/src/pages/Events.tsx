@@ -5,7 +5,7 @@ import { Card } from '../components/ui/Card'
 import { Skeleton } from '../components/ui/Skeleton'
 import { format } from 'date-fns'
 
-type SortKey = 'triggered_at' | 'payout_eur' | 'hospital_id' | 'payout_tier'
+type SortKey = 'triggered_at' | 'calculated_payout_eur' | 'hospital_id' | 'payout_tier'
 type SortDir = 'asc' | 'desc'
 
 export function Events() {
@@ -72,10 +72,10 @@ export function Events() {
                     { k: 'event_certificate_id', label: 'Certificate' },
                     { k: 'hospital_id', label: 'Hospital' },
                     { k: 'payout_tier', label: 'Tier' },
-                    { k: 'payout_eur', label: 'Payout' },
+                    { k: 'calculated_payout_eur', label: 'Payout' },
                     { k: 'status', label: 'Status' },
                   ].map(col => {
-                    const sortable = (['triggered_at', 'payout_eur', 'hospital_id', 'payout_tier'] as string[]).includes(col.k)
+                    const sortable = (['triggered_at', 'calculated_payout_eur', 'hospital_id', 'payout_tier'] as string[]).includes(col.k)
                     const isActive = sortKey === col.k
                     return (
                       <th
@@ -98,7 +98,7 @@ export function Events() {
                     <td style={td}>{e.event_certificate_id}</td>
                     <td style={td}>{e.hospital_id}</td>
                     <td style={td}>{e.payout_tier}</td>
-                    <td style={{ ...td, textAlign: 'right' }} className="tabular">€{e.payout_eur.toLocaleString()}</td>
+                    <td style={{ ...td, textAlign: 'right' }} className="tabular">€{e.calculated_payout_eur.toLocaleString()}</td>
                     <td style={td}>{e.status}</td>
                   </tr>
                 ))}

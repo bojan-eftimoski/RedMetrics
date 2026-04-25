@@ -8,13 +8,13 @@ import { Skeleton } from '../components/ui/Skeleton'
 const SENSORS = ['LIG_001', 'LIG_002', 'LIG_003', 'LIG_004', 'LIG_005']
 
 const SERIES = [
-  { key: 'water_temperature', color: '#f97316', unit: '°C' },
-  { key: 'ph', color: '#a78bfa', unit: '' },
-  { key: 'humidity', color: '#22d3ee', unit: '%' },
-  { key: 'conductivity', color: '#facc15', unit: 'mS/cm' },
-  { key: 'dissolved_oxygen', color: '#34d399', unit: 'mg/L' },
-  { key: 'nitrate', color: '#fb7185', unit: 'µM' },
-  { key: 'phosphate', color: '#60a5fa', unit: 'µM' },
+  { key: 'temperature_c',          color: '#f97316', unit: '°C' },
+  { key: 'ph',                     color: '#a78bfa', unit: '' },
+  { key: 'humidity_pct',           color: '#22d3ee', unit: '%' },
+  { key: 'conductivity_ms_cm',     color: '#facc15', unit: 'mS/cm' },
+  { key: 'dissolved_oxygen_mg_l',  color: '#34d399', unit: 'mg/L' },
+  { key: 'nitrate_umol_l',         color: '#fb7185', unit: 'µM' },
+  { key: 'phosphate_umol_l',       color: '#60a5fa', unit: 'µM' },
 ] as const
 
 type SeriesKey = typeof SERIES[number]['key']
@@ -51,13 +51,13 @@ export function Sensors() {
     () =>
       rows.map(r => ({
         ts: r.timestamp.slice(5, 16).replace('T', ' '),
-        water_temperature: r.water_temperature,
+        temperature_c: r.temperature_c,
         ph: r.ph,
-        humidity: r.humidity,
-        conductivity: r.conductivity,
-        dissolved_oxygen: r.dissolved_oxygen,
-        nitrate: r.nitrate,
-        phosphate: r.phosphate,
+        humidity_pct: r.humidity_pct,
+        conductivity_ms_cm: r.conductivity_ms_cm,
+        dissolved_oxygen_mg_l: r.dissolved_oxygen_mg_l,
+        nitrate_umol_l: r.nitrate_umol_l,
+        phosphate_umol_l: r.phosphate_umol_l,
       })),
     [rows],
   )

@@ -427,7 +427,7 @@ def download_era5() -> Path:
             "Get the UUID key at https://cds.climate.copernicus.eu/profile"
         )
 
-    client = cdsapi.Client(url=os.getenv("CDS_URL"), key=cds_key, quiet=True)
+    client = cdsapi.Client(url=os.getenv("CDS_URL"), key=cds_key, quiet=False)
     months = [f"{m:02d}" for m in range(1, 13)]
     days = [f"{d:02d}" for d in range(1, 32)]
     area = [BBOX["lat_max"], BBOX["lon_min"], BBOX["lat_min"], BBOX["lon_max"]]

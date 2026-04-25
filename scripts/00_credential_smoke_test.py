@@ -74,29 +74,31 @@ def check_cmems() -> tuple[bool, str]:
 
 
 def check_cds() -> tuple[bool, str]:
-    """C3S CDS API key format is 'UID:API-KEY'. PRD has 'YOUR_UID:...' placeholder."""
+    """ECMWF Beta CDS (2024+) uses a single UUID API key. The legacy 'UID:apikey'
+    format is also still accepted for backward compatibility."""
     try:
         import cdsapi  # type: ignore
+        import requests
 
         key = os.getenv("CDS_KEY", "")
         url = os.getenv("CDS_URL", "")
-        if not key or ":" not in key:
-            return False, f"CDS_KEY malformed (expected 'UID:apikey'), got '{key[:20]}...'"
-        if key.startswith("YOUR_UID"):
-            return False, "CDS_KEY still contains 'YOUR_UID' placeholder — fill in numeric UID"
+        if not key:
+            return False, "CDS_KEY missing in .env"
+        if key.startswith("YOUR_UID") or "PLACEHOLDER" in key.upper():
+            return False, f"CDS_KEY still contains placeholder ('{key[:20]}...')"
 
-        # Initialize client; this validates credentials format only (no real call).
-        client = cdsapi.Client(url=url, key=key, quiet=True)
-        # Try a tiny status check — list datasets endpoint
-        import requests
+        # Initialize client; cdsapi accepts both UUID-only and 'UID:apikey' forms.
+        cdsapi.Client(url=url, key=key, quiet=True)
 
+        # Verify against the live datastores API. Beta CDS uses PRIVATE-TOKEN: <uuid-or-apikey>.
+        token = key.split(":", 1)[1] if ":" in key else key
         resp = requests.get(
             f"{url.rstrip('/')}/catalogue/v1/collections",
-            headers={"PRIVATE-TOKEN": key.split(":", 1)[1]},
+            headers={"PRIVATE-TOKEN": token},
             timeout=15,
         )
         if resp.status_code == 200:
-            return True, "CDS API reachable, key format valid"
+            return True, "CDS API reachable, key accepted"
         return False, f"HTTP {resp.status_code}: {resp.text[:200]}"
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"

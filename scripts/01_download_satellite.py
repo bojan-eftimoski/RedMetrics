@@ -369,10 +369,10 @@ def download_era5() -> Path:
     print(f"[ERA5] Downloading wind/wave → {out.name}")
 
     cds_key = os.getenv("CDS_KEY", "")
-    if cds_key.startswith("YOUR_UID") or ":" not in cds_key:
+    if not cds_key or cds_key.startswith("YOUR_UID") or "PLACEHOLDER" in cds_key.upper():
         raise RuntimeError(
-            "CDS_KEY missing or placeholder ('YOUR_UID:...'). "
-            "Get the real UID:apikey at https://cds.climate.copernicus.eu/profile"
+            "CDS_KEY missing or placeholder. "
+            "Get the UUID key at https://cds.climate.copernicus.eu/profile"
         )
 
     client = cdsapi.Client(url=os.getenv("CDS_URL"), key=cds_key, quiet=True)

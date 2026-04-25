@@ -408,11 +408,16 @@ def download_cmems() -> Path:
 
 # ─── ERA5 wind & wave ─────────────────────────────────────────────────────
 def download_era5() -> Path:
-    """Hourly ERA5 wind/wave for BBOX, aggregated to daily."""
+    """Hourly ERA5 wind/wave for BBOX, aggregated to daily.
+
+    The CDS Beta enforces a per-request cost cap. A single 10-year × 4-variable
+    × 6-hourly retrieval blows past it, so we loop year-by-year and concatenate
+    the daily aggregates. Each per-year request is a few MB.
+    """
     import cdsapi  # type: ignore
+    import xarray as xr  # type: ignore
 
     out = SATELLITE_DIR / "era5_wind_waves_ligurian_2015_2024.csv"
-    nc_path = SATELLITE_DIR / "_era5_tmp.nc"
     print(f"[ERA5] Downloading wind/wave → {out.name}")
 
     cds_key = os.getenv("CDS_KEY", "")
@@ -423,56 +428,89 @@ def download_era5() -> Path:
         )
 
     client = cdsapi.Client(url=os.getenv("CDS_URL"), key=cds_key, quiet=True)
-
-    years = [str(y) for y in range(2015, 2025)]
     months = [f"{m:02d}" for m in range(1, 13)]
     days = [f"{d:02d}" for d in range(1, 32)]
-
-    client.retrieve(
-        "reanalysis-era5-single-levels",
-        {
-            "product_type": ["reanalysis"],
-            "format": "netcdf",
-            "variable": [
-                "10m_u_component_of_wind",
-                "10m_v_component_of_wind",
-                "significant_height_of_combined_wind_waves_and_swell",
-                "mean_wave_direction",
-            ],
-            "year": years,
-            "month": months,
-            "day": days,
-            "time": ["00:00", "06:00", "12:00", "18:00"],
-            "area": [BBOX["lat_max"], BBOX["lon_min"], BBOX["lat_min"], BBOX["lon_max"]],
-        },
-        str(nc_path),
-    )
-
-    import xarray as xr  # type: ignore
-
-    ds = xr.open_dataset(nc_path)
-    # Spatial mean
-    spatial_dims = [d for d in ("latitude", "longitude", "lat", "lon") if d in ds.dims]
-    ds_mean = ds.mean(dim=spatial_dims, skipna=True)
-    df = ds_mean.to_dataframe().reset_index()
-    time_col = "time" if "time" in df.columns else "valid_time"
-    df["date"] = pd.to_datetime(df[time_col]).dt.date.astype(str)
-
-    daily = df.groupby("date", as_index=False).mean(numeric_only=True)
-    rename = {
-        "u10": "wind_u",
-        "v10": "wind_v",
-        "swh": "wave_height",
-        "mwd": "wave_direction",
-    }
-    daily = daily.rename(columns=rename)
-    daily["wind_speed"] = np.sqrt(daily["wind_u"] ** 2 + daily["wind_v"] ** 2)
-    daily["wind_direction"] = (np.degrees(np.arctan2(-daily["wind_u"], -daily["wind_v"])) + 360) % 360
+    area = [BBOX["lat_max"], BBOX["lon_min"], BBOX["lat_min"], BBOX["lon_max"]]
+    rename = {"u10": "wind_u", "v10": "wind_v", "swh": "wave_height", "mwd": "wave_direction"}
     keep = ["date", "wind_u", "wind_v", "wind_speed", "wind_direction", "wave_height"]
-    daily = daily[[c for c in keep if c in daily.columns]]
-    daily.to_csv(out, index=False)
-    nc_path.unlink(missing_ok=True)
-    print(f"[ERA5] OK — {len(daily)} daily rows")
+
+    import zipfile
+
+    def _extracted_netcdfs(path: Path) -> list[Path]:
+        """CDS Beta returns either a single .nc or a .zip with one or more .nc
+        members (one per data stream — e.g. atmospheric wind vs ocean wave).
+        Returns the list of .nc paths to open."""
+        with path.open("rb") as fh:
+            magic = fh.read(4)
+        if magic[:2] != b"PK":
+            return [path]
+        out_paths: list[Path] = []
+        with zipfile.ZipFile(path) as zf:
+            nc_members = [n for n in zf.namelist() if n.endswith(".nc")]
+            if not nc_members:
+                raise RuntimeError(f"ERA5 zip {path} contains no .nc file: {zf.namelist()}")
+            for member in nc_members:
+                target = path.parent / f"{path.stem}__{Path(member).stem}.nc"
+                with zf.open(member) as src, target.open("wb") as dst:
+                    dst.write(src.read())
+                out_paths.append(target)
+        return out_paths
+
+    yearly_frames: list[pd.DataFrame] = []
+    for year in range(2015, 2025):
+        nc_path = SATELLITE_DIR / f"_era5_tmp_{year}.nc"
+        print(f"[ERA5] requesting {year}…")
+        client.retrieve(
+            "reanalysis-era5-single-levels",
+            {
+                "product_type": ["reanalysis"],
+                "format": "netcdf",
+                "variable": [
+                    "10m_u_component_of_wind",
+                    "10m_v_component_of_wind",
+                    "significant_height_of_combined_wind_waves_and_swell",
+                    "mean_wave_direction",
+                ],
+                "year": [str(year)],
+                "month": months,
+                "day": days,
+                "time": ["00:00", "06:00", "12:00", "18:00"],
+                "area": area,
+            },
+            str(nc_path),
+        )
+
+        nc_paths = _extracted_netcdfs(nc_path)
+        per_stream_daily: list[pd.DataFrame] = []
+        for nc in nc_paths:
+            ds = xr.open_dataset(nc)
+            spatial_dims = [d for d in ("latitude", "longitude", "lat", "lon") if d in ds.dims]
+            ds_mean = ds.mean(dim=spatial_dims, skipna=True)
+            df = ds_mean.to_dataframe().reset_index()
+            time_col = "time" if "time" in df.columns else "valid_time"
+            df["date"] = pd.to_datetime(df[time_col]).dt.date.astype(str)
+            grouped = df.groupby("date", as_index=False).mean(numeric_only=True)
+            per_stream_daily.append(grouped)
+            ds.close()
+
+        # Merge streams on date — wind u/v and wave swh/mwd come from different files.
+        daily = per_stream_daily[0]
+        for extra in per_stream_daily[1:]:
+            daily = daily.merge(extra, on="date", how="outer")
+        daily = daily.rename(columns=rename).sort_values("date").reset_index(drop=True)
+        daily["wind_speed"] = np.sqrt(daily["wind_u"] ** 2 + daily["wind_v"] ** 2)
+        daily["wind_direction"] = (np.degrees(np.arctan2(-daily["wind_u"], -daily["wind_v"])) + 360) % 360
+        yearly_frames.append(daily[[c for c in keep if c in daily.columns]])
+
+        nc_path.unlink(missing_ok=True)
+        for nc in nc_paths:
+            if nc != nc_path:
+                nc.unlink(missing_ok=True)
+        print(f"[ERA5] {year} OK — {len(daily)} daily rows")
+
+    full = pd.concat(yearly_frames, ignore_index=True).sort_values("date").reset_index(drop=True)
+    full.to_csv(out, index=False)
+    print(f"[ERA5] OK — {len(full)} daily rows total")
     return out
 
 

@@ -27,6 +27,11 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 
+# Force UTF-8 on stdout/stderr so unicode chars (→, µ, °, ²) don't crash on Windows cp1252.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8")
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 load_dotenv(REPO_ROOT / ".env")
@@ -173,18 +178,20 @@ function setup() {
   return {
     input: [{ bands: ["B04", "B05", "SCL", "dataMask"] }],
     output: [
-      { id: "ndci", bands: 1, sampleType: "FLOAT32" },
-      { id: "mask", bands: 1, sampleType: "UINT8"   }
+      { id: "ndci",     bands: 1, sampleType: "FLOAT32" },
+      { id: "dataMask", bands: 1, sampleType: "UINT8"   }
     ]
   };
 }
 function evaluatePixel(s) {
-  // Restrict to water pixels (SCL == 6) within valid mask
+  // Restrict to water pixels (SCL == 6) within valid mask.
+  // Statistical API requires an output named exactly "dataMask"; pixels with
+  // dataMask == 0 are excluded from the per-band statistics.
   var isWater = (s.SCL == 6) && (s.dataMask == 1);
-  if (!isWater) return { ndci: [NaN], mask: [0] };
+  if (!isWater) return { ndci: [NaN], dataMask: [0] };
   var denom = (s.B05 + s.B04);
-  if (denom <= 0) return { ndci: [NaN], mask: [0] };
-  return { ndci: [(s.B05 - s.B04) / denom], mask: [1] };
+  if (denom <= 0) return { ndci: [NaN], dataMask: [0] };
+  return { ndci: [(s.B05 - s.B04) / denom], dataMask: [1] };
 }
 """
 
@@ -225,8 +232,10 @@ def download_sentinel2_ndci() -> Path:
             },
             "aggregationInterval": {"of": "P1M"},
             "evalscript": S2_EVALSCRIPT,
-            "resx": 60,
-            "resy": 60,
+            # Bbox is CRS84 -> resx/resy are in DEGREES. ~0.005 deg ~= 555 m at
+            # lat 44 (well under the 1500 m S2L2A statistical-API cap).
+            "resx": 0.005,
+            "resy": 0.005,
         },
         "calculations": {"ndci": {"statistics": {"default": {}}}},
     }
@@ -275,23 +284,48 @@ CMEMS_DATASETS = {
         "vars": ["so"],
         "depth_max": 1.5,
     },
+    # Chlorophyll-a in the Med Sea NRT lives in the PFT (phytoplankton
+    # functional types) sub-product, not -bio (which exposes O2/nutrients).
     "chlorophyll": {
-        "id": "cmems_mod_med_bgc-bio_anfc_4.2km_P1D-m",
+        "id": "cmems_mod_med_bgc-pft_anfc_4.2km_P1D-m",
         "vars": ["chl"],
         "depth_max": 1.5,
     },
 }
 
+# Reanalysis chl for pre-NRT history (optional). Same product family.
 CMEMS_REANALYSIS = {
-    "id": "cmems_mod_med_bgc_my_4.2km_P1D-m",
+    "id": "cmems_mod_med_bgc-pft_my_4.2km_P1D-m",
     "vars": ["chl"],
     "depth_max": 1.5,
 }
 
 
+_CMEMS_LOGGED_IN = False
+
+
+def _ensure_cmems_login() -> None:
+    """Push CMEMS credentials into copernicusmarine once per process. The
+    library otherwise silently falls back to an unauthenticated session and
+    open_dataset returns None for protected catalogs."""
+    global _CMEMS_LOGGED_IN
+    if _CMEMS_LOGGED_IN:
+        return
+    import copernicusmarine
+
+    user = os.getenv("CMEMS_USERNAME")
+    pwd = os.getenv("CMEMS_PASSWORD")
+    if not user or not pwd:
+        raise RuntimeError("CMEMS_USERNAME / CMEMS_PASSWORD missing from .env")
+    copernicusmarine.login(username=user, password=pwd, force_overwrite=True)
+    _CMEMS_LOGGED_IN = True
+
+
 def _cmems_subset_to_daily_scalar(dataset_id: str, vars_: list[str], depth_max: float) -> pd.DataFrame:
     """Use copernicusmarine to subset to BBOX, then spatial-average to one scalar per day."""
-    import copernicusmarine  # local import keeps top-level fast
+    import copernicusmarine
+
+    _ensure_cmems_login()
 
     print(f"   subset {dataset_id} (vars={vars_})")
     ds = copernicusmarine.open_dataset(
@@ -306,6 +340,12 @@ def _cmems_subset_to_daily_scalar(dataset_id: str, vars_: list[str], depth_max: 
         minimum_depth=0.0,
         maximum_depth=depth_max,
     )
+    if ds is None:
+        raise RuntimeError(
+            f"copernicusmarine.open_dataset returned None for {dataset_id}. "
+            f"This usually means the session is unauthenticated or the dataset "
+            f"id has been retired."
+        )
 
     # Spatial mean across lat/lon, surface depth
     if "depth" in ds.dims:
@@ -431,15 +471,20 @@ def download_era5() -> Path:
 
 # ─── Orchestration ────────────────────────────────────────────────────────
 def main() -> int:
+    # Sentinel-3 OLCI L2 WFR (CHL_NN) is not exposed as a built-in CDSE Sentinel
+    # Hub collection. Chlorophyll-a is sourced from the CMEMS biogeochemistry
+    # dataset instead (cmems_mod_med_bgc-bio_anfc_4.2km_P1D-m), which has daily
+    # gap-free coverage back to 1999. download_sentinel3_chla() is kept in this
+    # file for reference only and is not invoked.
     sources = [
-        ("Sentinel-3 OLCI", download_sentinel3_chla),
         ("Sentinel-2 NDCI", download_sentinel2_ndci),
         ("CMEMS",           download_cmems),
         ("ERA5",            download_era5),
     ]
     print("=" * 64)
-    print("Phase 1 — Satellite & climate data acquisition")
+    print("Phase 1 -- Satellite & climate data acquisition")
     print(f"BBOX: {BBOX}    DATE: {DATE_START} -> {DATE_END}")
+    print("Chlorophyll source: CMEMS bgc (Sentinel-3 OLCI dropped, not available on CDSE Sentinel Hub)")
     print("=" * 64)
     for name, fn in sources:
         try:

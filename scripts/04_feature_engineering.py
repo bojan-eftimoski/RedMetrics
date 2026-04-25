@@ -29,6 +29,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8")
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RAW = REPO_ROOT / "data" / "raw"
 PROCESSED = REPO_ROOT / "data" / "processed"
@@ -36,13 +40,15 @@ PROCESSED.mkdir(parents=True, exist_ok=True)
 OUT_PATH = PROCESSED / "merged_features.csv"
 
 PATHS = {
-    "s3":      RAW / "satellite" / "sentinel3_olci_ligurian_2015_2024.csv",
     "s2":      RAW / "satellite" / "sentinel2_ndci_ligurian_2015_2024.csv",
     "cmems":   RAW / "satellite" / "cmems_sst_currents_ligurian_2015_2024.csv",
     "era5":    RAW / "satellite" / "era5_wind_waves_ligurian_2015_2024.csv",
     "iot":     RAW / "iot" / "iot_sensor_mock_ligurian_2022_2024.csv",
     "hospital":RAW / "hospital" / "hospital_admissions_ligurian_synthetic.csv",
 }
+# Sentinel-3 OLCI was dropped (CDSE Sentinel Hub does not expose L2 WFR with
+# CHL_NN). chl_a_mean is now sourced from CMEMS biogeochemistry (chl_cmems).
+OPTIONAL_S3_PATH = RAW / "satellite" / "sentinel3_olci_ligurian_2015_2024.csv"
 
 DATE_START = "2015-01-01"
 DATE_END = "2024-12-31"
@@ -153,19 +159,13 @@ def main() -> int:
         return 1
 
     # ── Load satellite ────────────────────────────────────────────────────
-    s3 = pd.read_csv(PATHS["s3"])
     s2 = pd.read_csv(PATHS["s2"])
     cmems = pd.read_csv(PATHS["cmems"])
     era5 = pd.read_csv(PATHS["era5"])
 
-    print(f"  s3:    {len(s3)} rows")
     print(f"  s2:    {len(s2)} rows")
     print(f"  cmems: {len(cmems)} rows")
     print(f"  era5:  {len(era5)} rows")
-
-    # Expand monthly satellite features onto daily timeline
-    s3_daily = _expand_monthly_to_daily(s3, ["mean_chl_a", "max_chl_a", "std_chl_a"])
-    s3_daily = s3_daily.rename(columns={"mean_chl_a": "chl_a_mean", "max_chl_a": "chl_a_max"})
 
     s2_daily = _expand_monthly_to_daily(s2, ["ndci_mean", "ndci_coastal_max"])
     s2_daily = s2_daily.rename(columns={"ndci_mean": "ndci"})
@@ -176,11 +176,28 @@ def main() -> int:
 
     daily = (
         pd.DataFrame({"date": pd.date_range(DATE_START, DATE_END, freq="D")})
-        .merge(s3_daily, on="date", how="left")
         .merge(s2_daily, on="date", how="left")
         .merge(cmems, on="date", how="left")
         .merge(era5, on="date", how="left")
     )
+
+    # chl_a_mean now comes from CMEMS biogeochemistry (chl_cmems). If a legacy
+    # Sentinel-3 OLCI CSV happens to be present, prefer it as a richer signal
+    # but fall back to chl_cmems otherwise (the canonical hackathon path).
+    if OPTIONAL_S3_PATH.exists():
+        s3 = pd.read_csv(OPTIONAL_S3_PATH)
+        print(f"  s3 (legacy, optional): {len(s3)} rows")
+        s3_daily = _expand_monthly_to_daily(s3, ["mean_chl_a", "max_chl_a", "std_chl_a"])
+        s3_daily = s3_daily.rename(columns={"mean_chl_a": "chl_a_mean", "max_chl_a": "chl_a_max"})
+        daily = daily.merge(s3_daily, on="date", how="left")
+        if "chl_cmems" in daily.columns:
+            daily["chl_a_mean"] = daily["chl_a_mean"].combine_first(daily["chl_cmems"])
+    else:
+        if "chl_cmems" not in daily.columns:
+            print("[FAIL] CMEMS download missing chl_cmems column -- cannot derive chl_a_mean.",
+                  file=sys.stderr)
+            return 1
+        daily["chl_a_mean"] = daily["chl_cmems"]
 
     # Forward-fill short gaps (≤3 days) for daily streams; longer gaps leave NaN
     short_fill_cols = [

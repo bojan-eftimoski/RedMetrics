@@ -15,6 +15,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8")
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = REPO_ROOT / "data" / "raw" / "hospital"
 OUT_DIR.mkdir(parents=True, exist_ok=True)

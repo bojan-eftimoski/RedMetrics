@@ -1,0 +1,44 @@
+# Secrets
+.env
+.env.local
+*.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+
+# Data (large files, not source-controlled)
+data/raw/
+data/processed/
+data/models/*.pkl
+data/replay/
+
+# NetCDF / scientific binary
+*.nc
+*.netcdf
+*.h5
+*.hdf5
+
+# Node / frontends
+node_modules/
+hospital/dist/
+hospital/.vite/
+insurance/dist/
+insurance/.vite/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp

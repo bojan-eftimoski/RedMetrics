@@ -1,0 +1,14 @@
+lightgbm
+scikit-learn
+pandas
+xarray
+netCDF4
+numpy
+sentinelhub
+copernicusmarine
+cdsapi
+python-dotenv
+joblib
+requests
+scipy
+supabase

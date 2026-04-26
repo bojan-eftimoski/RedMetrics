@@ -1,0 +1,35 @@
+{
+  "name": "tidealert-map-animation",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Cinematic 3D map animation of a Ligurian Sea harmful-algal-bloom forming, drifting, and reaching the Genoa coast. Drop-in React component for the TideAlert pitch site.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "mapbox-gl": "^3.22.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.4",
+    "@types/mapbox-gl": "^3.4.1",
+    "@types/node": "^24.12.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "tailwindcss": "^4.2.4",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.10"
+  }
+}

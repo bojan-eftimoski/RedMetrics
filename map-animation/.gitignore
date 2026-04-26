@@ -6,3 +6,5 @@ dist-ssr/
 .env.*.local
 *.tsbuildinfo
 .DS_Store
+# Raw Playwright recording artefacts (only the renamed demo.* are committed).
+videos/page@*.webm

@@ -9,9 +9,15 @@ import { DEFAULT_IMPACT_EVENTS, type ImpactEvent, type ImpactKind } from './data
 import { startCameraSequence } from './cameraSequence'
 import { SvgBloom } from './components/SvgBloom'
 import { WindCanvas } from './components/WindCanvas'
+import { IPhoneOverlay } from './components/IPhoneOverlay'
+import { Stage2Inset } from './components/Stage2Inset'
+import { WaveOverlay } from './components/WaveOverlay'
 
 const DEFAULT_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12'
-const DEFAULT_DURATION_MS = 30_000
+const DEFAULT_DURATION_MS = 32_000
+
+/** When (in seconds) the iPhone "centres + map blurs" transition starts. */
+const T_BLUR_START = 26.5
 
 interface ProjectedImpact {
   event: ImpactEvent
@@ -72,6 +78,7 @@ export function TideAlertMap({
   const [progress, setProgress] = useState(0)
   const [activeImpacts, setActiveImpacts] = useState<ProjectedImpact[]>([])
   const [bloomScreen, setBloomScreen] = useState<BloomScreen | null>(null)
+  const [tSec, setTSec] = useState(0)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -156,7 +163,7 @@ export function TideAlertMap({
 
     const tick = () => {
       const elapsed = performance.now() - sequenceStartMsRef.current
-      const tSec = (elapsed / 1000) % (durationMs / 1000)
+      const tSecLocal = (elapsed / 1000) % (durationMs / 1000)
       const wrapped = elapsed >= durationMs
 
       if (wrapped) {
@@ -167,9 +174,10 @@ export function TideAlertMap({
         cameraRef.current = startCameraSequence(map, durationMs)
       }
 
-      const frame = sampleTimeline(bloomTimeline, tSec)
+      const frame = sampleTimeline(bloomTimeline, tSecLocal)
       setCurrentFrame(frame)
       setProgress(elapsed / durationMs)
+      setTSec(tSecLocal)
 
       // Project bloom centre + radius edge to screen pixels.
       if (frame.intensity > 0.005 && frame.radiusKm > 0) {
@@ -197,9 +205,9 @@ export function TideAlertMap({
       // Project impact events.
       const projected: ProjectedImpact[] = []
       for (const ev of DEFAULT_IMPACT_EVENTS) {
-        if (tSec < ev.t) continue
+        if (tSecLocal < ev.t) continue
         const p = map.project(ev.position as [number, number])
-        projected.push({ event: ev, x: p.x, y: p.y, age: tSec - ev.t })
+        projected.push({ event: ev, x: p.x, y: p.y, age: tSecLocal - ev.t })
       }
       setActiveImpacts(projected)
 
@@ -213,37 +221,73 @@ export function TideAlertMap({
     cameraRef.current?.cancel()
     setActiveImpacts([])
     setBloomScreen(null)
+    setTSec(0)
     startSequence()
   }
+
+  const mapBlurred = tSec >= T_BLUR_START && tSec < (durationMs / 1000) - 0.4
 
   if (tokenMissing) {
     return <TokenMissingPanel className={className} />
   }
 
   return (
-    <div className={clsx('relative h-full w-full overflow-hidden bg-black', className)}>
-      <div ref={containerRef} className="absolute inset-0" />
+    <div
+      className={clsx(
+        'relative h-full w-full overflow-hidden bg-black',
+        mapBlurred && 'ta-map-blurred',
+        className,
+      )}
+    >
+      {/* Everything map-related goes inside ta-map-content so they all blur
+          together when the iPhone takes over the foreground. */}
+      <div className="ta-map-content absolute inset-0">
+        <div ref={containerRef} className="absolute inset-0" />
 
-      {/* Wind particles (separate Canvas2D, no GL conflict with Mapbox) */}
-      {showWind && styleLoaded && <WindCanvas map={mapRef.current} />}
+        {/* Wind particles (separate Canvas2D, no GL conflict with Mapbox) */}
+        {showWind && styleLoaded && <WindCanvas map={mapRef.current} />}
 
-      {/* Cinematic vignette */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.45)_100%)]" />
+        {/* Cinematic vignette */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.45)_100%)]" />
 
-      {/* Animated red-tide bloom */}
-      {bloomScreen && (
-        <SvgBloom
-          cx={bloomScreen.cx}
-          cy={bloomScreen.cy}
-          rPx={bloomScreen.rPx}
-          intensity={bloomScreen.intensity}
-        />
+        {/* Animated red-tide bloom */}
+        {bloomScreen && (
+          <SvgBloom
+            cx={bloomScreen.cx}
+            cy={bloomScreen.cy}
+            rPx={bloomScreen.rPx}
+            intensity={bloomScreen.intensity}
+          />
+        )}
+
+        {/* Coastal impact pins + popup cards */}
+        {activeImpacts.map((p) => (
+          <ImpactPin key={p.event.t} projected={p} />
+        ))}
+      </div>
+
+      {/* Dimming layer that fades in alongside the iPhone reveal. */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-black"
+        style={{
+          opacity: mapBlurred ? 0.4 : 0,
+          transition: 'opacity 800ms ease-out',
+        }}
+      />
+
+      {/* Wave overlay — fades in over the camera zoom-in on the bloom water,
+          showing surface ripples + carried particles. */}
+      {styleLoaded && !mapError && <WaveOverlay tSec={tSec} />}
+
+      {/* Stage 2 educational inset (wave + wind cards), brief AMBER pop. */}
+      {styleLoaded && !mapError && (
+        <Stage2Inset tSec={tSec} frame={currentFrame} />
       )}
 
-      {/* Coastal impact pins + popup cards */}
-      {activeImpacts.map((p) => (
-        <ImpactPin key={p.event.t} projected={p} />
-      ))}
+      {/* iPhone overlay (lock screen → notification → tap → app reveal) */}
+      {styleLoaded && !mapError && (
+        <IPhoneOverlay tSec={tSec} frame={currentFrame} />
+      )}
 
       {!styleLoaded && !mapError && <LoadingPanel />}
 
@@ -314,7 +358,6 @@ function ImpactPin({ projected }: { projected: ProjectedImpact }) {
 
 function ControlOverlay({
   frame,
-  progress,
   onReplay,
 }: {
   frame: BloomTimelineFrame
@@ -340,17 +383,6 @@ function ControlOverlay({
         >
           Replay
         </button>
-      </div>
-      <div className="rounded-lg bg-black/60 p-3 backdrop-blur-md">
-        <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
-          <div
-            className="h-full bg-[var(--color-severity-red)] transition-[width] duration-100"
-            style={{ width: `${Math.min(100, progress * 100)}%` }}
-          />
-        </div>
-        <div className="mt-1.5 text-[11px] uppercase tracking-wider text-[var(--color-text-muted)]">
-          TideAlert · Genoa Ligurian Coast · 2005 Ostreopsis ovata replay
-        </div>
       </div>
     </div>
   )

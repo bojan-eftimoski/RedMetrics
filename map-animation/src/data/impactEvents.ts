@@ -50,10 +50,13 @@ export interface ImpactEvent {
 }
 
 export const DEFAULT_IMPACT_EVENTS: ImpactEvent[] = [
+  // Compressed schedule — last impact lands at t=20.5s, leaving 1.5s of
+  // breathing room before the iPhone reveal at t=22s.
+
   // ─── Stage 1 + Stage 2 early warning ────────────────────────────────
   {
-    t: 12,
-    position: [8.99, 44.10], // offshore, where bloom is currently
+    t: 8.5,
+    position: [8.99, 44.10],
     kind: 'rri_alert',
     headline: 'Stage 2 RRI threshold crossed',
     stat: 'RRI 74 · RED',
@@ -61,8 +64,8 @@ export const DEFAULT_IMPACT_EVENTS: ImpactEvent[] = [
   },
   // ─── Real-world marine impact ───────────────────────────────────────
   {
-    t: 15,
-    position: [8.85, 44.41], // Voltri / west Genoa
+    t: 11,
+    position: [8.85, 44.41],
     kind: 'fish_kill',
     headline: 'Marine die-off · Voltri reserve',
     stat: '12,400+ fish',
@@ -70,8 +73,8 @@ export const DEFAULT_IMPACT_EVENTS: ImpactEvent[] = [
   },
   // ─── Stage 3 hospital surge forecast ────────────────────────────────
   {
-    t: 18,
-    position: [8.93, 44.41], // Genoa city / OSP_SAN_MARTINO area
+    t: 13.5,
+    position: [8.93, 44.41],
     kind: 'hospital_surge',
     headline: 'Stage 3 surge · OSP_SAN_MARTINO',
     stat: '+87 vs baseline',
@@ -79,8 +82,8 @@ export const DEFAULT_IMPACT_EVENTS: ImpactEvent[] = [
   },
   // ─── Stage 4 parametric trigger fires ───────────────────────────────
   {
-    t: 21,
-    position: [8.93, 44.41], // San Martino
+    t: 16,
+    position: [8.93, 44.41],
     kind: 'trigger_fired',
     headline: 'Stage 4 parametric trigger fired',
     stat: '€187,500 paid',
@@ -88,8 +91,8 @@ export const DEFAULT_IMPACT_EVENTS: ImpactEvent[] = [
   },
   // ─── Public health response ────────────────────────────────────────
   {
-    t: 24,
-    position: [9.04, 44.40], // east Genoa / Nervi
+    t: 18.5,
+    position: [9.04, 44.40],
     kind: 'beach_closed',
     headline: 'Beaches closed by ASL3',
     stat: '11 km coastline',
@@ -97,8 +100,8 @@ export const DEFAULT_IMPACT_EVENTS: ImpactEvent[] = [
   },
   // ─── Economic impact ───────────────────────────────────────────────
   {
-    t: 27,
-    position: [9.20, 44.32], // Portofino / Cinque Terre direction
+    t: 20.5,
+    position: [9.20, 44.32],
     kind: 'tourism',
     headline: 'Tourism cancellations · Cinque Terre',
     stat: '4,100 bookings',

@@ -1,7 +1,8 @@
 import type { BloomTimelineFrame } from '../types'
 
 /**
- * 30-second bloom progression off the Ligurian coast (Genoa).
+ * 22-second bloom progression — compressed so the map narrative finishes
+ * before the iPhone reveal kicks in at t=22s.
  *
  * Modelled on the documented 2005 Genoa _Ostreopsis ovata_ outbreak. Numbers
  * are calibrated against the actual TideAlert pipeline (see
@@ -15,37 +16,30 @@ import type { BloomTimelineFrame } from '../types'
  *       TOXIN_MULTIPLIER_DECLINING = 1.5 when chl_a_7d_rate < 0
  *   • Stage 4 trigger (trigger.py):
  *       Fires when RRI > 70 AND consecutive_days ≥ 5 AND DO < 5.0 AND pH < 7.95
- *
- * RRI in this timeline is what `calculate_rri()` would return for the same
- * (bloom_probability, wind_speed, wind_direction=160°, wave_height) inputs —
- * verified by hand for spot-check frames.
- *
- * To swap in real Stage 1 + Stage 2 pipeline output, replace this array with
- * frames generated from rri_scores rows (see ../README.md).
  */
 export const DEFAULT_BLOOM_TIMELINE: BloomTimelineFrame[] = [
-  // Pre-bloom: low chl-a, low wind. RRI green.
-  { t: 0,  center: [8.95, 44.00], intensity: 0.00, radiusKm: 0,  bloomProbability: 0.05, windSpeedMs: 4.0,  windDirectionDeg: 145, waveHeightM: 0.4, rri: 0,  severity: 'GREEN' },
-  // Bloom forms; Stage 1 probability climbing as chl-a + SST cross thresholds.
-  { t: 2,  center: [8.95, 44.02], intensity: 0.25, radiusKm: 12, bloomProbability: 0.32, windSpeedMs: 6.5,  windDirectionDeg: 152, waveHeightM: 0.6, rri: 18, severity: 'GREEN' },
-  // Onshore push picking up; chl_a 7-day rate still positive (no toxin boost yet).
-  { t: 4,  center: [8.96, 44.06], intensity: 0.45, radiusKm: 18, bloomProbability: 0.58, windSpeedMs: 8.5,  windDirectionDeg: 158, waveHeightM: 0.7, rri: 34, severity: 'AMBER' },
-  // Bloom drifting north; bloom_probability above 0.7, wave height crosses reference.
-  { t: 7,  center: [8.97, 44.12], intensity: 0.65, radiusKm: 24, bloomProbability: 0.74, windSpeedMs: 9.5,  windDirectionDeg: 160, waveHeightM: 0.9, rri: 52, severity: 'AMBER' },
-  // Stage 1 ≈ 0.85; chl_a starts declining → toxin multiplier kicks in (×1.5).
-  { t: 10, center: [8.97, 44.18], intensity: 0.80, radiusKm: 28, bloomProbability: 0.85, windSpeedMs: 10.5, windDirectionDeg: 162, waveHeightM: 1.0, rri: 64, severity: 'RED' },
-  // Crosses RRI 70 — Stage 4 trigger countdown begins.
-  { t: 13, center: [8.98, 44.24], intensity: 0.92, radiusKm: 30, bloomProbability: 0.91, windSpeedMs: 11.5, windDirectionDeg: 161, waveHeightM: 1.1, rri: 74, severity: 'RED' },
-  // RED tier sustained.
-  { t: 16, center: [8.97, 44.30], intensity: 1.00, radiusKm: 32, bloomProbability: 0.95, windSpeedMs: 12.0, windDirectionDeg: 160, waveHeightM: 1.2, rri: 82, severity: 'RED' },
-  // Crosses CRITICAL threshold; Stage 4 will escalate from RED to CRITICAL payout if duration ≥ 7d.
-  { t: 19, center: [8.96, 44.35], intensity: 1.00, radiusKm: 33, bloomProbability: 0.97, windSpeedMs: 12.5, windDirectionDeg: 159, waveHeightM: 1.3, rri: 88, severity: 'CRITICAL' },
+  // Pre-bloom.
+  { t: 0,    center: [8.95, 44.00], intensity: 0.00, radiusKm: 0,  bloomProbability: 0.05, windSpeedMs: 4.0,  windDirectionDeg: 145, waveHeightM: 0.4, rri: 0,  severity: 'GREEN' },
+  // Bloom forms — Stage 1 probability climbing.
+  { t: 1.5,  center: [8.95, 44.02], intensity: 0.25, radiusKm: 12, bloomProbability: 0.32, windSpeedMs: 6.5,  windDirectionDeg: 152, waveHeightM: 0.6, rri: 18, severity: 'GREEN' },
+  // GREEN→AMBER threshold (rri 31): Stage 2 inset appears around here.
+  { t: 3,    center: [8.96, 44.06], intensity: 0.45, radiusKm: 18, bloomProbability: 0.58, windSpeedMs: 8.5,  windDirectionDeg: 158, waveHeightM: 0.7, rri: 34, severity: 'AMBER' },
+  // AMBER mid: bloom drifting north, chl_a still positive.
+  { t: 5,    center: [8.97, 44.12], intensity: 0.65, radiusKm: 24, bloomProbability: 0.74, windSpeedMs: 9.5,  windDirectionDeg: 160, waveHeightM: 0.9, rri: 52, severity: 'AMBER' },
+  // RED threshold; chl_a starts declining → toxin multiplier 1.5×.
+  { t: 7,    center: [8.97, 44.18], intensity: 0.80, radiusKm: 28, bloomProbability: 0.85, windSpeedMs: 10.5, windDirectionDeg: 162, waveHeightM: 1.0, rri: 64, severity: 'RED' },
+  // RRI 70 — Stage 4 trigger countdown begins.
+  { t: 9.5,  center: [8.98, 44.24], intensity: 0.92, radiusKm: 30, bloomProbability: 0.91, windSpeedMs: 11.5, windDirectionDeg: 161, waveHeightM: 1.1, rri: 74, severity: 'RED' },
+  // RED sustained.
+  { t: 12,   center: [8.97, 44.30], intensity: 1.00, radiusKm: 32, bloomProbability: 0.95, windSpeedMs: 12.0, windDirectionDeg: 160, waveHeightM: 1.2, rri: 82, severity: 'RED' },
+  // Crosses CRITICAL.
+  { t: 14,   center: [8.96, 44.35], intensity: 1.00, radiusKm: 33, bloomProbability: 0.97, windSpeedMs: 12.5, windDirectionDeg: 159, waveHeightM: 1.3, rri: 88, severity: 'CRITICAL' },
   // Bloom impacting coast.
-  { t: 22, center: [8.95, 44.39], intensity: 1.00, radiusKm: 34, bloomProbability: 0.98, windSpeedMs: 12.5, windDirectionDeg: 158, waveHeightM: 1.4, rri: 92, severity: 'CRITICAL' },
-  // Peak — coastline saturated.
-  { t: 26, center: [8.93, 44.41], intensity: 0.98, radiusKm: 34, bloomProbability: 0.97, windSpeedMs: 12.0, windDirectionDeg: 157, waveHeightM: 1.4, rri: 94, severity: 'CRITICAL' },
-  // Wind starts to ease; bloom slowly disperses west.
-  { t: 30, center: [8.91, 44.42], intensity: 0.95, radiusKm: 34, bloomProbability: 0.96, windSpeedMs: 11.0, windDirectionDeg: 155, waveHeightM: 1.3, rri: 93, severity: 'CRITICAL' },
+  { t: 16,   center: [8.95, 44.39], intensity: 1.00, radiusKm: 34, bloomProbability: 0.98, windSpeedMs: 12.5, windDirectionDeg: 158, waveHeightM: 1.4, rri: 92, severity: 'CRITICAL' },
+  // Peak.
+  { t: 19,   center: [8.93, 44.41], intensity: 0.98, radiusKm: 34, bloomProbability: 0.97, windSpeedMs: 12.0, windDirectionDeg: 157, waveHeightM: 1.4, rri: 94, severity: 'CRITICAL' },
+  // Held at CRITICAL through the iPhone phase.
+  { t: 22,   center: [8.91, 44.42], intensity: 0.95, radiusKm: 34, bloomProbability: 0.96, windSpeedMs: 11.0, windDirectionDeg: 155, waveHeightM: 1.3, rri: 93, severity: 'CRITICAL' },
 ]
 
 export function sampleTimeline(

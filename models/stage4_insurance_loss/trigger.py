@@ -17,8 +17,8 @@ for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
         _stream.reconfigure(encoding="utf-8")
 
-RRI_SCORE_THRESHOLD: float = 70.0
-RRI_CONSECUTIVE_DAYS_THRESHOLD: int = 5
+RRI_SCORE_THRESHOLD: float = 60.0
+RRI_CONSECUTIVE_DAYS_THRESHOLD: int = 3
 IOT_DO_THRESHOLD: float = 5.0
 IOT_PH_THRESHOLD: float = 7.95
 

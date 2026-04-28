@@ -5,7 +5,7 @@ Deterministic. **No model training.** Both files implement the B2B2B Flow A from
 ## Trigger logic
 
 ```python
-rri_trigger = (rri_score > 70) and (rri_consecutive_days >= 5)
+rri_trigger = (rri_score > 60) and (rri_consecutive_days >= 3)
 iot_trigger = (iot_dissolved_oxygen < 5.0) and (iot_ph < 7.95)
 trigger_fired = rri_trigger and iot_trigger
 ```

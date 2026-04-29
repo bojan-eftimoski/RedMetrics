@@ -1,6 +1,6 @@
-# TideAlert
+# RedMetrics
 
-**Team RedMetrics** — CASSINI 11th Edition, Space for Water Hackathon
+**Team codeleap** — CASSINI 11th Edition, Space for Water Hackathon
 
 Harmful Algal Bloom (HAB) early-warning system for the Ligurian coast (Genoa, Italy). TideAlert converts a documented 7-day lag between satellite-detectable bloom formation and the resulting spike in respiratory ER admissions into actionable financial preparation time for hospitals and automatic parametric insurance payouts.
 

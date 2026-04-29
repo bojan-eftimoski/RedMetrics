@@ -2,11 +2,11 @@
 .env
 .env.local
 *.local
-ARCHITECTURE.md
-SKILLS_AND_MCP_GUIDE.md
-TASK_LIST.md
-TideAlert_PRD_v2.md
-hardware/AGENTS.md
+**/ARCHITECTURE.md
+**/SKILLS_AND_MCP_GUIDE.md
+**/TASK_LIST.md
+**/TideAlert_PRD_v2.md
+**/hardware/AGENTS.md
 
 # Python
 __pycache__/

@@ -187,6 +187,7 @@ Saved bundle: `data/models/stage1_lgbm.pkl`.
 A LightGBM binary classifier on 16 features predicting the 7-day-forward
 `bloom_label`:
 
+
 ```python
 FEATURES = [
     "chl_a_mean", "chl_a_7d_rate", "chl_a_consecutive_days",
